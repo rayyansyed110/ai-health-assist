@@ -25,7 +25,7 @@ st.title("🩺 Patient Support & Assistance")
 # =========================
 # CONFIG & SECRETS
 # =========================
-HF_TOKEN = st.secrets.get("HF_TOKEN", os.getenv("HF_TOKEN", ""))  # optional
+HF_TOKEN = st.secrets.get("HF_TOKEN", os.getenv("HF_TOKEN", ""))  # optional for AI boost
 USE_LIVE_RXNORM = True   # set False to rely only on local synonyms
 
 # =========================
@@ -103,7 +103,7 @@ def detect_symptoms_rules(text: str):
             out.append(s); seen.add(s)
     return out
 
-# --- AI symptom boost (optional) ---
+# --- AI symptom boost (Hugging Face zero-shot) ---
 HF_ZS_MODEL = "facebook/bart-large-mnli"
 HF_API_URL = f"https://api-inference.huggingface.co/models/{HF_ZS_MODEL}"
 
@@ -198,7 +198,6 @@ RXNAV = "https://rxnav.nlm.nih.gov/REST"
 def rxnorm_lookup(name: str):
     """Return (rxcui, canonical_name) or (None, None)"""
     try:
-        # approximate term → get top candidate
         approx = cached_get(f"{RXNAV}/approximateTerm.json", params={"term": name, "maxEntries": 1})
         cand = approx["json"]["approximateGroup"]["candidate"][0]
         rxcui = cand["rxcui"]
