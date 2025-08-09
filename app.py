@@ -21,12 +21,8 @@ If you have emergency symptoms (e.g., chest pain, trouble breathing, one-sided w
 """
 )
 st.title("🩺 Patient Support & Assistance")
-
-# =========================
-# CONFIG & SECRETS
-# =========================
 HF_TOKEN = st.secrets.get("HF_TOKEN", os.getenv("HF_TOKEN", ""))  # optional for AI boost
-USE_LIVE_RXNORM = True   # set False to rely only on local synonyms
+st.caption(f"AI symptom boost: {'ON' if HF_TOKEN else 'OFF'}")
 
 # =========================
 # CACHING HELPERS
@@ -44,10 +40,10 @@ def cached_post(url, payload=None, headers=None, timeout=25):
     return {"url": r.url, "json": r.json()}
 
 # =========================
-# A1) SYMPTOM TRIAGE SETUP
+# A1) SYMPTOM TRIAGE
 # =========================
 
-# --- MedlinePlus links with fallback (so app never breaks) ---
+# MedlinePlus links with a safe fallback (so app never breaks)
 DEFAULT_LINKS_CSV = """symptom,url
 headache,https://medlineplus.gov/headache.html
 fever,https://medlineplus.gov/fever.html
@@ -92,18 +88,42 @@ RED_FLAGS = [
     "uncontrolled bleeding","severe allergic reaction","blue lips","worst headache",
     "stiff neck with fever","vision loss","severe abdominal pain","blood in stool","black tarry stool"
 ]
+# Catch phrasing variations → map to canonical symptoms
+SYMPTOM_SYNONYMS = {
+    "chest pain": [
+        r"chest (tight|tightness|pressure)",
+        r"tight(ness)? in (my|the)? chest",
+        r"pressure in (my|the)? chest",
+        r"pain in (my|the)? chest"
+    ],
+    "shortness of breath": [
+        r"trouble breathing",
+        r"hard to breathe",
+        r"difficulty breathing",
+        r"breathless(ness)?",
+        r"short( of)? breath"
+    ],
+}
 SEVERITY_WORDS = {"mild":1,"moderate":2,"severe":3,"worst":3}
 DURATION_RE = re.compile(r"(\b\d+\b)\s*(hour|hours|day|days|week|weeks)", re.I)
 
 def detect_symptoms_rules(text: str):
     t = text.lower()
     seen, out = set(), []
+    # exact phrase hits
     for s in SYMPTOMS:
         if s in t and s not in seen:
             out.append(s); seen.add(s)
+    # regex-based synonym hits → map to canonical
+    for canonical, patterns in SYMPTOM_SYNONYMS.items():
+        for pat in patterns:
+            if re.search(pat, t):
+                if canonical not in seen:
+                    out.append(canonical); seen.add(canonical)
+                break
     return out
 
-# --- AI symptom boost (Hugging Face zero-shot) ---
+# HF zero-shot boost
 HF_ZS_MODEL = "facebook/bart-large-mnli"
 HF_API_URL = f"https://api-inference.huggingface.co/models/{HF_ZS_MODEL}"
 
@@ -166,10 +186,10 @@ def triage(text: str):
             "symptoms":symptoms,"context":ctx}
 
 # ==============================
-# A2) MEDS + REMINDERS SETUP
+# A2) MEDS + REMINDERS
 # ==============================
 
-# --- Local synonyms fallback (works offline) ---
+# Local synonyms fallback (works offline)
 def load_synonyms_map():
     try:
         df = pd.read_csv("meds_synonyms.csv")
@@ -191,7 +211,7 @@ def load_synonyms_map():
 
 SYN_MAP = load_synonyms_map()
 
-# --- RxNorm live normalization (preferred when available) ---
+# RxNorm live normalization (preferred)
 RXNAV = "https://rxnav.nlm.nih.gov/REST"
 
 @st.cache_data(show_spinner=False, ttl=60*60)
@@ -208,15 +228,12 @@ def rxnorm_lookup(name: str):
         return None, None
 
 def normalize_meds(user_text: str):
-    """Normalize user input to canonical names and (optionally) RXCUIs."""
+    """Normalize to canonical names and (optionally) RXCUIs."""
     raw = [x.strip() for x in user_text.split(",") if x.strip()]
     meds = []
     for r in raw:
         alias = r.lower()
-        # Try live RxNorm first
-        rxcui, cname = (None, None)
-        if USE_LIVE_RXNORM:
-            rxcui, cname = rxnorm_lookup(alias)
+        rxcui, cname = rxnorm_lookup(alias)
         if not cname:
             cname = SYN_MAP.get(alias, alias)
         meds.append({"input": r, "canonical": cname.lower(), "rxcui": rxcui})
@@ -228,7 +245,7 @@ def normalize_meds(user_text: str):
             uniq.append(m); seen.add(key)
     return uniq
 
-# --- High-priority DDI table (rule layer so we always catch big risks) ---
+# High-priority DDI table (rule layer)
 def load_ddi_table():
     try:
         df = pd.read_csv("onc_high_priority_ddi.csv")
@@ -250,7 +267,6 @@ ibuprofen,naproxen,moderate,Avoid duplicate NSAIDs; higher GI/renal risk,https:/
 DDI = load_ddi_table()
 
 def check_interactions(meds_norm: list[dict]):
-    """Find rule-based high-priority DDIs among normalized meds."""
     names = [m["canonical"] for m in meds_norm]
     results = []
     if len(names) < 2 or DDI.empty:
@@ -270,7 +286,7 @@ def check_interactions(meds_norm: list[dict]):
             })
     return results
 
-# --- openFDA Drug Label evidence (interactions/warnings/contraindications) ---
+# FDA label evidence
 OPENFDA_URL = "https://api.fda.gov/drug/label.json"
 
 @st.cache_data(show_spinner=False, ttl=60*60)
@@ -425,3 +441,4 @@ with tab2:
                 file_name=f"reminder_{med_choice.replace(' ','_')}.ics",
                 mime="text/calendar",
             )
+
