@@ -1,0 +1,6 @@
+drug_a,drug_b,severity,note,source
+sertraline,linezolid,major,Risk of serotonin syndrome; avoid or monitor closely,https://www.accessdata.fda.gov/
+warfarin,ibuprofen,major,Bleeding risk increases; avoid or monitor INR closely,https://www.accessdata.fda.gov/
+warfarin,aspirin,major,Bleeding risk increases; avoid or monitor INR closely,https://www.accessdata.fda.gov/
+ibuprofen,naproxen,moderate,Avoid duplicate NSAIDs; higher GI/renal risk,https://www.accessdata.fda.gov/
+
