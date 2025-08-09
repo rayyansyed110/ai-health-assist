@@ -7,7 +7,7 @@ AI Health Assist is a Streamlit-based web application that helps users triage sy
 
 ## 🚀 Live Demo
 
-Try it out: [ai-health-assist.streamlit.app]([https://ai-health-assist.streamlit.app/](https://ai-health-assist-a2stg7g67vmkaqk8q8mycr.streamlit.app/))
+Try it out: [[ai-health-assist.streamlit.app]([https://ai-health-assist.streamlit.app/](https://ai-health-assist-a2stg7g67vmkaqk8q8mycr.streamlit.app/))](https://ai-health-assist-a2stg7g67vmkaqk8q8mycr.streamlit.app/)
 
 ## ✨ Features
 - Symptom triage with urgency levels (🔴 Urgent, 🟠 Soon, 🟢 Routine)
